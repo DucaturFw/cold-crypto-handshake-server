@@ -37,6 +37,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 					return s.send(jrpce(json.id, "session not found!"))
 				
 				console.log(`#${s.id} joined session ${sid} by #${session.host}`)
+				session.peer = s.id
 				s.send(jrpca(json.id, { offer: session.offer }))
 			}
 			if (isSendAnswer(json))
@@ -71,7 +72,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 	{
 		delete CLIENTS[s.id]
 		console.log(`#${s.id} disconnected`)
-		
+
 		let session = getSessionByParticipant(s.id)
 		if (session && s.id == session.host)
 		{
