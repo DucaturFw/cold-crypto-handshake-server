@@ -11,6 +11,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 {
 	s.id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
 	CLIENTS[s.id] = s
+	console.log(`client #${s.id} connected`)
 	s.on('message', data =>
 	{
 		try
@@ -25,12 +26,17 @@ server.on('connection', (s: WebSocketExt, r) =>
 					offer,
 					host: s.id
 				}
+				console.log(`created session ${sid} for #${s.id}`)
 				s.send(jrpca(json.id, { sid }))
 			}
 			if (isJoinSession(json))
 			{
 				let { sid } = allToObj(json, ['sid'])
 				let session = SESSIONS[sid]
+				if (!session)
+					return s.send(jrpce(json.id, "session not found!"))
+				
+				console.log(`#${s.id} joined session ${sid} by #${session.host}`)
 				s.send(jrpca(json.id, { offer: session.offer }))
 			}
 			if (isSendAnswer(json))
@@ -40,6 +46,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 				if (!session)
 					return s.send(jrpce(json.id, "session not found!"))
 				
+				console.log(`got answer from #${s.id} to #${session.host}`)
 				CLIENTS[session.host].send(jrpc(0, 'answer', { answer }))
 			}
 			if (isSendIce(json))
@@ -51,6 +58,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 				if (!session.peer)
 					return s.send(jrpce(json.id, "peer not connected!"))
 				
+				console.log(`ice candidate from #${s.id} to #${session.peer}`)
 				CLIENTS[session.peer].send(jrpc(0, 'ice', { ice }))
 			}
 		}
@@ -62,10 +70,14 @@ server.on('connection', (s: WebSocketExt, r) =>
 	s.on('close', () =>
 	{
 		delete CLIENTS[s.id]
+		console.log(`#${s.id} disconnected`)
+		
 		let session = getSessionByParticipant(s.id)
-
 		if (session && s.id == session.host)
+		{
 			delete SESSIONS[session.sid]
+			console.log(`session ${session.sid} deleted`)
+		}
 	})
 })
 server.on('listening', () =>
@@ -83,28 +95,28 @@ function getSessionByParticipant(id: number)
 }
 function jrpc<T>(id: string | number, method: string, params: T)
 {
-	return {
+	return JSON.stringify({
 		jsonrpc: "2.0",
 		id,
 		method,
 		params
-	}
+	})
 }
 function jrpca<T>(id: string | number, result: T)
 {
-	return {
+	return JSON.stringify({
 		jsonrpc: "2.0",
 		id,
 		result
-	}
+	})
 }
 function jrpce<T>(id: string | number, error: T)
 {
-	return {
+	return JSON.stringify({
 		jsonrpc: "2.0",
 		id,
 		error
-	}
+	})
 }
 
 type U = JsonRpcCall<unknown[], unknown>
@@ -117,7 +129,7 @@ interface JsonRpcCall<TArr extends (TObj[keyof TObj][] | unknown[]), TObj>
 {
 	method: string
 	id: string | number
-	args: TArr | TObj
+	params: TArr | TObj
 }
 
 export type JsonCall<T1 = unknown, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown, T6 = unknown, T7 = unknown>
@@ -127,7 +139,7 @@ export type JsonCall<T1 = unknown, T2 = unknown, T3 = unknown, T4 = unknown, T5 
 	>
 export function allToObj<TObj>(msg: JsonRpcCall<TObj[keyof TObj][], TObj>, mapping: (keyof TObj)[]): TObj
 {
-	return Array.isArray(msg.args) ? arrayToObj(msg.args, mapping) : msg.args
+	return Array.isArray(msg.params) ? arrayToObj(msg.params, mapping) : msg.params
 }
 export function arrayToObj<TArr extends any[], TObj>(args: TArr, mapping: (keyof TObj)[]): TObj
 {

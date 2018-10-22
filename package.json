@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "test-ws": "ts-node src/test.ts"
   },
   "dependencies": {
     "@types/node": "^10.12.0",
