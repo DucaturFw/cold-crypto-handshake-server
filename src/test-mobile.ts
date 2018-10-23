@@ -7,8 +7,13 @@ if (!sid)
 
 function limit(str: string, len: number)
 {
+	if (!str || !str.length)
+		return str
+	
 	if (str.length <= len)
 		return str
+	
+	str = "" + str
 	
 	return str.substring(0, len) + '...'
 }
@@ -32,8 +37,8 @@ ws.on('open', () =>
 		console.log(json)
 		if (json.id == 1)
 		{
-			console.log(`got offer: ${limit(json.result, 30)}`)
-			let offer = json.result
+			console.log(`got offer: ${limit(json.result.offer, 30)}`)
+			let offer = json.result.offer
 			let answer = await rpc.pushOffer(offer)
 			console.log(`generated answer: ${limit(answer as string, 30)}`)
 			ws.send(JSON.stringify({ method: "answer", id: 2, params: { answer } }))
