@@ -39,14 +39,17 @@ ws.on('open', () =>
 		{
 			console.log(`got offer: ${limit(json.result.offer, 30)}`)
 			let offer = json.result.offer
-			let answer = await rpc.pushOffer(offer)
+			let answer = await rpc.pushOffer({ type: "offer", sdp: offer })
 			console.log(`generated answer: ${limit(answer as string, 30)}`)
-			ws.send(JSON.stringify({ method: "answer", id: 2, params: { answer } }))
+			ws.send(JSON.stringify({ method: "answer", id: 2, params: { answer: (answer as any).sdp } }))
+
+			rpc.on('ice', ice => ws.send(JSON.stringify({ method: "ice", id: 3, params: { ice } })))
 		}
 		if (json.method == "ice")
 		{
-			console.log(`got ice: ${limit(json.result, 30)}`)
-			rpc.pushIceCandidate(json.result)
+			console.log(`got ice: ${limit(json.params.ice && json.params.ice.candidate, 30)}`)
+			if (json.params.ice)
+				rpc.pushIceCandidate(json.params.ice)
 		}
 	})
 	ws.send(JSON.stringify({ method: "join", id: 1, params: { sid }}))

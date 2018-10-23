@@ -59,8 +59,12 @@ server.on('connection', (s: WebSocketExt, r) =>
 				if (!session.peer)
 					return s.send(jrpce(json.id, "peer not connected!"))
 				
-				console.log(`ice candidate from #${s.id} to #${session.peer}`)
-				CLIENTS[session.peer].send(jrpc(0, 'ice', { ice }))
+				let peer = session.peer
+				if (s.id == peer)
+					peer = session.host
+				
+				console.log(`ice candidate from #${s.id} to #${peer}`)
+				CLIENTS[peer].send(jrpc(0, 'ice', { ice }))
 			}
 		}
 		catch(e)
