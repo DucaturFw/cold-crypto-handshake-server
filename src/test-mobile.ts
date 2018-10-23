@@ -10,7 +10,7 @@ function limit(str: string, len: number)
 	if (str.length <= len)
 		return str
 	
-	return str.substr(0, len) + '...'
+	return str.substring(0, len) + '...'
 }
 
 console.log(`connecting with sid = "${sid}"`)
