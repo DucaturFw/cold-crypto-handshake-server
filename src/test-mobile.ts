@@ -29,6 +29,7 @@ ws.on('open', () =>
 	{
 		console.log(`got message: ${data.toString()}`)
 		let json = JSON.parse(data.toString())
+		console.log(json)
 		if (json.id == 1)
 		{
 			console.log(`got offer: ${limit(json.result, 30)}`)
