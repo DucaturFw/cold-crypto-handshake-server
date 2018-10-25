@@ -16,7 +16,11 @@ server.on('connection', (s: WebSocketExt, r) =>
 	{
 		try
 		{
-			let json = JSON.parse(data.toString())
+			data = data.toString()
+			if (data[0] != "{")
+				data = data.replace(/^([^|]*)\|([^|]*)\|(.*)$/, '{"method":"$1","id":$2,"params":$3}')
+			
+			let json = JSON.parse(data)
 			if (isCreateSession(json))
 			{
 				let { offer } = allToObj(json, ['offer'])
