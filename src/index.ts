@@ -1,6 +1,6 @@
 import WebSocket from "ws"
 
-type WebSocketExt = WebSocket & { id: number }
+type WebSocketExt = WebSocket & { id: number, reduced: boolean }
 
 console.log('loading...')
 
@@ -17,7 +17,8 @@ server.on('connection', (s: WebSocketExt, r) =>
 		try
 		{
 			data = data.toString()
-			if (data[0] != "{")
+			s.reduced = data[0] != "{"
+			if (s.reduced)
 				data = data.replace(/^([^|]*)\|([^|]*)\|(.*)$/, '{"method":"$1","id":$2,"params":$3}')
 			
 			let json = JSON.parse(data)
@@ -31,7 +32,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 					host: s.id
 				}
 				console.log(`created session ${sid} for #${s.id}`)
-				s.send(jrpca(json.id, { sid }))
+				s.send(jrpca(json.id, { sid }, s.reduced))
 			}
 			if (isJoinSession(json))
 			{
@@ -42,7 +43,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 				
 				console.log(`#${s.id} joined session ${sid} by #${session.host}`)
 				session.peer = s.id
-				s.send(jrpca(json.id, { offer: session.offer }))
+				s.send(jrpca(json.id, { offer: session.offer }, s.reduced))
 			}
 			if (isSendAnswer(json))
 			{
@@ -52,7 +53,8 @@ server.on('connection', (s: WebSocketExt, r) =>
 					return s.send(jrpce(json.id, "session not found!"))
 				
 				console.log(`got answer from #${s.id} to #${session.host}`)
-				CLIENTS[session.host].send(jrpc(0, 'answer', { answer }))
+				let host = CLIENTS[session.host]
+				host.send(jrpc(0, 'answer', { answer }, host.reduced))
 			}
 			if (isSendIce(json))
 			{
@@ -68,7 +70,7 @@ server.on('connection', (s: WebSocketExt, r) =>
 					peer = session.host
 				
 				console.log(`ice candidate from #${s.id} to #${peer}`)
-				CLIENTS[peer].send(jrpc(0, 'ice', { ice }))
+				CLIENTS[peer].send(jrpc(0, 'ice', { ice }, CLIENTS[peer].reduced))
 			}
 		}
 		catch(e)
@@ -102,8 +104,11 @@ function getSessionByParticipant(id: number)
 	let sid = Object.keys(SESSIONS).find(key => (SESSIONS[key].host == id) || (SESSIONS[key].peer == id))
 	return sid && SESSIONS[sid]
 }
-function jrpc<T>(id: string | number, method: string, params: T)
+function jrpc<T>(id: string | number, method: string, params: T, reduced: boolean = false)
 {
+	if (reduced)
+		return `${method}|${id}|${JSON.stringify(params)}`
+	
 	return JSON.stringify({
 		jsonrpc: "2.0",
 		id,
@@ -111,8 +116,11 @@ function jrpc<T>(id: string | number, method: string, params: T)
 		params
 	})
 }
-function jrpca<T>(id: string | number, result: T)
+function jrpca<T>(id: string | number, result: T, reduced: boolean = false)
 {
+	if (reduced)
+		return `|${id}|${JSON.stringify(result)}`
+	
 	return JSON.stringify({
 		jsonrpc: "2.0",
 		id,
