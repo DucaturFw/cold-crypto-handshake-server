@@ -22,9 +22,14 @@ server.on('connection', (s: WebSocketExt, r) =>
 				data = data.replace(/^([^|]*)\|([^|]*)\|(.*)$/, '{"method":"$1","id":$2,"params":$3}')
 			
 			let json = JSON.parse(data)
+			let err = (msg: string) => s.send(jrpce(json.id, msg))
 			if (isCreateSession(json))
 			{
 				let { offer } = allToObj(json, ['offer'])
+				if (!offer)
+					return err(`offer not provided!`)
+				if (typeof offer !== "string")
+					return err(`offer should be string! got: ${JSON.stringify(offer)}`)
 				let sid = "session" + Math.random()
 				SESSIONS[sid] = {
 					sid,
@@ -37,9 +42,12 @@ server.on('connection', (s: WebSocketExt, r) =>
 			if (isJoinSession(json))
 			{
 				let { sid } = allToObj(json, ['sid'])
+				if (!sid || (typeof sid !== "string"))
+					return err(`incorrect sid: ${sid}`)
+				
 				let session = SESSIONS[sid]
 				if (!session)
-					return s.send(jrpce(json.id, "session not found!"))
+					return err("session not found!")
 				
 				console.log(`#${s.id} joined session ${sid} by #${session.host}`)
 				session.peer = s.id
@@ -48,22 +56,32 @@ server.on('connection', (s: WebSocketExt, r) =>
 			if (isSendAnswer(json))
 			{
 				let { answer } = allToObj(json, ['answer'])
+				if (!answer)
+					return err(`answer was not provided!`)
+				if (typeof answer !== "string")
+					return err(`answer should be a string! got: ${JSON.stringify(answer)}`)
+				
 				let session = getSessionByParticipant(s.id)
 				if (!session)
-					return s.send(jrpce(json.id, "session not found!"))
+					return err("session not found!")
 				
 				console.log(`got answer from #${s.id} to #${session.host}`)
 				let host = CLIENTS[session.host]
+				if (!host)
+					return err(`host not found! session: ${session}, host: ${session.host}`)
+				
 				host.send(jrpc(0, 'answer', { answer }, host.reduced))
 			}
 			if (isSendIce(json))
 			{
 				let { ice } = allToObj(json, ['ice'])
+				if (!ice)
+					return err(`ice not provided!`)
 				let session = getSessionByParticipant(s.id)
 				if (!session)
-					return s.send(jrpce(json.id, "session not found!"))
+					return err("session not found!")
 				if (!session.peer)
-					return s.send(jrpce(json.id, "peer not connected!"))
+					return err("peer not connected!")
 				
 				let peer = session.peer
 				if (s.id == peer)
