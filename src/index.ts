@@ -90,6 +90,37 @@ server.on('connection', (s: WebSocketExt, r) =>
 				console.log(`ice candidate from #${s.id} to #${peer}`)
 				CLIENTS[peer].send(jrpc(0, 'ice', { ice }, CLIENTS[peer].reduced))
 			}
+			if (isTurnServers(json))
+			{
+				let session = getSessionByParticipant(s.id)
+
+				if (!session)
+					return err("session not found!")
+				
+				let peer = session.peer
+				if (!peer)
+					return err("peer not connected!")
+				
+				let { servers } = allToObj(json, ['servers'])
+				CLIENTS[peer].send(jrpc(0, 'turn', { servers }, CLIENTS[peer].reduced))
+			}
+			if (isFallback(json))
+			{
+				let session = getSessionByParticipant(s.id)
+
+				if (!session)
+					return err("session not found!")
+				
+				let peer = session.peer
+				if (!peer)
+					return err("peer not connected!")
+				
+				if (s.id == peer)
+					peer = session.host
+				
+				let { msg } = allToObj(json, ['msg'])
+				CLIENTS[peer].send(jrpc(0, 'fallback', { msg }, CLIENTS[peer].reduced))
+			}
 		}
 		catch(e)
 		{
@@ -159,6 +190,8 @@ let isCreateSession = (json: U): json is JsonCall<{offer: string}> => json.metho
 let isJoinSession = (json: U): json is JsonCall<{sid: string}> => json.method == "join"
 let isSendAnswer = (json: U): json is JsonCall<{answer: string}> => json.method == "answer"
 let isSendIce = (json: U): json is JsonCall<{ice: {}}> => json.method == "ice"
+let isTurnServers = (json: U): json is JsonCall<{servers: []}> => json.method == "turn"
+let isFallback = (json: U): json is JsonCall<{msg: string}> => json.method == "fallback"
 
 interface JsonRpcCall<TArr extends (TObj[keyof TObj][] | unknown[]), TObj>
 {
